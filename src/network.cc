@@ -33,6 +33,8 @@ Network::Network(std::vector<int> &sizes) {
 
 double sigmoid(double z) { return 1.0 / (1.0 + std::exp(-z)); }
 
+double sigmoid_prime(double z) {return sigmoid(z) * (1 - sigmoid(z)); }
+
 std::vector<double> Network::feedfoward(std::vector<double> &a) {
     std::vector output{a};
     for (int l{1}; l < number_of_layers; ++l) {
@@ -112,7 +114,92 @@ void Network::update_mini_batch(std::vector<std::pair<std::vector<double>, std::
     }
 }
 std::pair<std::vector<std::vector<double>>, std::vector<std::vector<std::vector<double>>>>
-Network::backprop(std::pair<std::vector<double>, std::vector<double>> xy) {
+Network::backprop(std::pair<std::vector<double>, std::vector<double>> &xy) {
+    std::vector<std::vector<double>> nabla_b{};
+    std::vector<std::vector<std::vector<double>>> nabla_w{};
+    number_of_layers = _sizes.size();
+    for (std::size_t i{1}; i < number_of_layers; ++i) {
+        std::vector aux(_sizes.at(i), 0.0);
+        nabla_b.push_back(aux);
+    }
 
+    for (int i{1}; i < number_of_layers; ++i) {
+        std::vector<std::vector<double>> first_aux{};
+        for (int j{0}; j < _sizes.at(i); ++j) {
+            std::vector second_aux(_sizes.at(i - 1), 0.0);
+            first_aux.push_back(second_aux);
+        }
+        nabla_w.push_back(first_aux);
+    }
+
+    std::vector<double> activation{xy.first};
+    std::vector<std::vector<double>> activations{activation};
+    std::vector<std::vector<double>> zs{};
+
+    for (std::size_t i{1}; i < number_of_layers; ++i) {
+        std::vector<double> z{};
+        for (auto j{0}; j < _sizes.at(i); ++j) {
+            double z_line{0.0};
+            for (auto k{0}; _sizes.at(i - 1); ++k) {
+                z_line += _weights[i][j][k] * activation[k];
+            }
+            z.push_back(_biases[i][j] + z_line);
+        }
+        zs.push_back(z);
+        activation.clear();
+        for (auto j{0}; _sizes.at(i); ++j) {
+            activation.push_back(sigmoid(z[j]));
+        }
+        activations.push_back(activation);
+    }
+
+    std::vector<double> delta{};
+    for (auto i{0}; i < _sizes.at(number_of_layers - 1); ++i) {
+        delta.push_back(cost_derivative(activations[number_of_layers - 1][i],
+            xy.second[i]) * sigmoid_prime(zs[number_of_layers - 1][i]));
+    }
+
+    auto n {number_of_layers - 1};
+    for (auto i{0}; i < n; ++i) {
+        for (auto j{0}; j < n - 1; ++j) {
+            nabla_w[n][i][j] = delta[i] * activations[n - 1][j];
+        }
+        nabla_b[n][i] = delta[i];
+    }
+
+    for (auto l{n - 1}; l > 0; --l) {
+        std::vector<double> z{};
+        for (auto i{0}; i < _sizes.at(l); ++i) {
+            z.push_back(zs[l][i]);
+        }
+        std::vector<double> sp{};
+        for (auto i{0}; i < _sizes.at(l); ++i) {
+            sp.push_back(sigmoid_prime(z[i]));
+        }
+        std::vector<double> new_delta{};
+        for (auto j{0}; j < _sizes.at(l); ++j) {
+            double line{0.0};
+            for (auto i{0}; i < _sizes.at(l + 1); ++i) {
+                line += _weights[l + 1][i][j] * delta[i];
+            }
+            new_delta.push_back(line * sp[j]);
+        }
+
+        delta.clear();
+        for (auto i{0}; i < _sizes.at(l); ++i) {
+            for (auto j{0}; j < _sizes.at(l - 1); ++j) {
+                nabla_w[l][i][j] = new_delta[i] * activations[l - 1][j];
+            }
+            nabla_b[l][i] = new_delta[i];
+            delta.push_back(new_delta[i]);
+        }
+    }
+
+
+    return {nabla_b, nabla_w};
+}
+
+double Network::cost_derivative(double output_activation, double y) {
+    return output_activation - y;
 }
 

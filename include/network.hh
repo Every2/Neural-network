@@ -4,7 +4,9 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
+
 double sigmoid(double z);
+double sigmoid_prime(double z);
 
 class Network {
 public:
@@ -15,8 +17,9 @@ public:
     void update_mini_batch(std::vector<std::pair<std::vector<double>, std::vector<double>>>& training_data,
                             std::size_t begin, std::size_t end, double eta);
     std::pair<std::vector<std::vector<double>>, std::vector<std::vector<std::vector<double>>>> backprop(
-        std::pair<std::vector<double>, std::vector<double>> xy
+        std::pair<std::vector<double>, std::vector<double>>& xy
     );
+    double cost_derivative(double output_activation, double y);
 
 private:
     std::vector<int> _sizes{};
